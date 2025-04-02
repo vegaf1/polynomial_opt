@@ -24,7 +24,7 @@ begin
 
     # parameters
     revs = 1
-    knot_pts = 40
+    knot_pts = 42
     N = knot_pts*revs
 
     # find the period for 1 rev
@@ -42,40 +42,19 @@ begin
     umax = -umin
 end
 # scaled by position
-# begin
-#     scale_position = q0[1] # [km]
-#     scale_time = period # [s]
-#     scale_velocity = scale_position / scale_time
-#     scale_acceleration = scale_velocity / scale_time
-
-#     # update variables
-#     μ /= scale_position^3 / scale_time^2
-#     h /= scale_time
-
-#     rmin /= scale_position
-#     rmax /= scale_position
-    
-#     umin /= scale_acceleration
-#     umax /= scale_acceleration
-
-#     q0 ./= scale_position
-#     r0 = norm(q0)
-#     v0 ./= scale_velocity
-# end
-# scaled by acceleration (want to scale all vars ∈ [-1, 1])
 begin
+    scale_position = q0[1] # [km]
     scale_time = period # [s]
-    scale_acceleration = q0[1] / scale_time^2 * 75.1*28. # [km/s^2]
-    scale_velocity = scale_acceleration * scale_time
-    scale_position = scale_velocity * scale_time
+    scale_velocity = scale_position / scale_time
+    scale_acceleration = scale_velocity / scale_time
 
     # update variables
     μ /= scale_position^3 / scale_time^2
     h /= scale_time
-    
+
     rmin /= scale_position
     rmax /= scale_position
-
+    
     umin /= scale_acceleration
     umax /= scale_acceleration
 
@@ -83,15 +62,36 @@ begin
     r0 = norm(q0)
     v0 ./= scale_velocity
 end
+# scaled by acceleration (want to scale all vars ∈ [-1, 1])
+# begin
+#     scale_time = period # [s]
+#     scale_acceleration = q0[1] / scale_time^2 * 75.1*28. # [km/s^2]
+#     scale_velocity = scale_acceleration * scale_time
+#     scale_position = scale_velocity * scale_time
+
+#     # update variables
+#     μ /= scale_position^3 / scale_time^2
+#     h /= scale_time
+    
+#     rmin /= scale_position
+#     rmax /= scale_position
+
+#     umin /= scale_acceleration
+#     umax /= scale_acceleration
+
+#     q0 ./= scale_position
+#     r0 = norm(q0)
+#     v0 ./= scale_velocity
+# end
 
 ## Optimization problem
 # VARIABLES
 # position, velocity, acceleration
-@polyvar q[1:3, 1:N]
-@polyvar v[1:3, 1:N]
+@polyvar q[1:3, 1:N-1]
+@polyvar v[1:3, 1:N-1]
 @polyvar a[1:3, 1:N]
 # radius
-@polyvar r[1:N] # = |q|
+@polyvar r[1:N-1] # = |q|
 # control
 @polyvar u[1:3, 1:N-1]
 vars = [vec(q); vec(v); vec(a); r; vec(u)]
@@ -105,16 +105,20 @@ obj = sum(r)
 # EQUALITY CONSTRAINTS
 eq = zeros(Polynomial{true, Float64}, 0)
 # initial conditions
-# append!(eq, r[1] - r0)
-append!(eq, q[:,1] - q0)
-append!(eq, v[:,1] - v0)
+q = [q0 q]
+v = [v0 v]
+r = [r0; r]
+# append!(eq, q[:,1] - q0)
+# append!(eq, v[:,1] - v0)
 
 # dynamics between timesteps
 for i = 1:N
     # acceleration dynamics
     append!(eq, r[i]^3*a[:,i] + μ*q[:,i])
     # radius auxillary variable
-    append!(eq, [r[i]^2 - q[:,i]'*q[:,i]])
+    if i > 1
+        append!(eq, [r[i]^2 - q[:,i]'*q[:,i]])
+    end
     # discrete updates
     if i < N
         # acceleration forward euler
@@ -177,11 +181,11 @@ end
 
 # vars = [vec(q); vec(v); vec(a); r; vec(u)]
 soln_scaled = Solution(
-                reshape(sol[1:3*N], 3, N),
-                reshape(sol[3*N+1:6*N], 3, N),
-                reshape(sol[6*N+1:9*N], 3, N),
-                reshape(sol[9*N+1:10*N], N),
-                reshape(sol[10*N+1:end], 3, N-1)
+                [q0 reshape(sol[1:3*N-3], 3, N-1)],
+                [v0 reshape(sol[3*N-3+1:6*N-6], 3, N-1)],
+                reshape(sol[6*N-6+1:9*N-6], 3, N),
+                [r0; reshape(sol[9*N-6+1:10*N-7], N-1)],
+                reshape(sol[10*N-7+1:end], 3, N-1)
             )
 
 soln = Solution(
