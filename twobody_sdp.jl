@@ -12,6 +12,7 @@ import Plots
 # 1 rev, 41 knotpts, control obj => 17% gap
 # 1 rev, 41 knotpts => < 1% gap
 # 1 rev, 40 knotpts, correct scaling => 0.1% gap
+# always infeasible with correct r0
 
 ## Generate problem
 begin

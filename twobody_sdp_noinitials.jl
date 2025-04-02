@@ -9,9 +9,8 @@ using Printf
 import Plots
 
 # Parameters that give working solutions:
-# 1 rev, 41 knotpts, control obj => 17% gap
-# 1 rev, 41 knotpts => < 1% gap
-# 1 rev, 40 knotpts, correct scaling => 0.1% gap
+# 1 rev, 42 knotpts => 0.3% gap
+# 1 rev, 42 knotpts, dif scaling => 0.3% gap
 
 ## Generate problem
 begin
@@ -65,7 +64,7 @@ end
 # scaled by acceleration (want to scale all vars ∈ [-1, 1])
 # begin
 #     scale_time = period # [s]
-#     scale_acceleration = q0[1] / scale_time^2 * 75.1*28. # [km/s^2]
+#     scale_acceleration = q0[1] / scale_time^2 * 1100. # [km/s^2]
 #     scale_velocity = scale_acceleration * scale_time
 #     scale_position = scale_velocity * scale_time
 
@@ -100,7 +99,7 @@ vars = [vec(q); vec(v); vec(a); r; vec(u)]
 # minimize radius
 obj = sum(r)
 # minimize control
-# obj += sum([u[:,i]'*u[:,i] for i = 1:N-1])
+obj += 10*sum([u[:,i]'*u[:,i] for i = 1:N-1])
 
 # EQUALITY CONSTRAINTS
 eq = zeros(Polynomial{true, Float64}, 0)
@@ -167,7 +166,7 @@ condition_numbers = cond.(data.moment)
 println("Max condition number: $(maximum(condition_numbers))")
 
 # Moment matrix
-mom = BlockDiagonal(Matrix.(data.moment))
+mom = Symmetric(BlockDiagonal(Matrix.(data.moment)))
 println("Moment rank: $(rank(mom, 1e-3))")
 
 ## Visualize solution
