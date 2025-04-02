@@ -159,13 +159,19 @@ if sum(abs.(eq_subed) .> 1e-6) > 0
     printstyled("$(sum(abs.(eq_subed) .> 1e-6)) equality constraint(s) violated!\n", color=:red)
 end
 
+# Moment matrix
+mom = Symmetric(BlockDiagonal(Matrix.(data.moment)))
+rank_mom = rank(mom, 1e-3)
+println("Moment rank: $rank_mom")
+
 # Condition numbers
 condition_numbers = cond.(data.moment)
 println("Max condition number: $(maximum(condition_numbers))")
-
-# Moment matrix
-mom = BlockDiagonal(Matrix.(data.moment))
-println("Moment rank: $(rank(mom, 1e-3))")
+F = eigen(mom)
+# only the non-zero block
+mom_reduced = reduce(hcat,sqrt.(F.values[end-rank_mom+1:end]).*eachcol(F.vectors[:,end-rank_mom+1:end]))
+better_cond = cond(mom_reduced)
+println("Better condition number: $better_cond")
 
 ## Visualize solution
 struct Solution
