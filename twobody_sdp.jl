@@ -1,13 +1,17 @@
 ## Solve two body problem via semidefinite relaxation
 # Lorenzo Shaikewitz, 3/30/2025
 # 
-# TODO: missing scaling
 # TODO: there are more constraints we can add
 
 using LinearAlgebra, BlockDiagonals
 using TSSOS, DynamicPolynomials
 using Printf
 import Plots
+
+# Parameters that give working solutions:
+# 1 rev, 41 knotpts, control obj => 17% gap
+# 1 rev, 41 knotpts => < 1% gap
+# 1 rev, 40 knotpts, correct scaling => 0.1% gap
 
 ## Generate problem
 begin
@@ -32,12 +36,12 @@ begin
     h = period/(N-1) # [s]
 
     # bounds
-    rmin = 0.75 # [scaled] TODO
-    rmax = 2.75 # [scaled] TODO
+    rmin = 0.75*q0[1] # [km]
+    rmax = 2.75*q0[1] # [km]
     umin = -20e-5 # [km/s^2]
     umax = -umin
 end
-# scaling
+# scaled by position
 begin
     scale_position = q0[1] # [km]
     scale_time = period # [s]
@@ -47,6 +51,9 @@ begin
     # update variables
     μ /= scale_position^3 / scale_time^2
     h /= scale_time
+
+    rmin /= scale_position
+    rmax /= scale_position
     
     umin /= scale_acceleration
     umax /= scale_acceleration
@@ -54,6 +61,26 @@ begin
     q0 ./= scale_position
     v0 ./= scale_velocity
 end
+# scaled by acceleration (want to scale all vars ∈ [-1, 1])
+# begin
+#     scale_time = period # [s]
+#     scale_acceleration = q0[1] / scale_time^2 * 75.1*28. # [km/s^2]
+#     scale_velocity = scale_acceleration * scale_time
+#     scale_position = scale_velocity * scale_time
+
+#     # update variables
+#     μ /= scale_position^3 / scale_time^2
+#     h /= scale_time
+    
+#     rmin /= scale_position
+#     rmax /= scale_position
+
+#     umin /= scale_acceleration
+#     umax /= scale_acceleration
+
+#     q0 ./= scale_position
+#     v0 ./= scale_velocity
+# end
 
 ## Optimization problem
 # VARIABLES
@@ -70,6 +97,8 @@ vars = [vec(q); vec(v); vec(a); r; vec(u)]
 # OBJECTIVE
 # minimize radius
 obj = sum(r)
+# minimize control
+# obj += sum([u[:,i]'*u[:,i] for i = 1:N-1])
 
 # EQUALITY CONSTRAINTS
 eq = zeros(Polynomial{true, Float64}, 0)
@@ -101,11 +130,19 @@ append!(ineq, rmax .- r)
 # bound control u_ij ∈ [umin, umax]
 append!(ineq, vec(u) .- umin)
 append!(ineq, umax .- vec(u))
+# bound all other variables ∈ [-1, 1]
+# append!(ineq, vec(q) .- 1.)
+# append!(ineq, 1. .- vec(q))
+# append!(ineq, vec(v) .- 1.)
+# append!(ineq, 1. .- vec(v))
+# append!(ineq, vec(a) .- 1.)
+# append!(ineq, 1. .- vec(a))
 
 # SOLVE
 pop = [obj; ineq; eq]
 order = 2
 opt, sol, data = cs_tssos_first(pop, vars, order, numeq=length(eq), TS="MD", solution=true)
+# opt, sol, data = cs_tssos_first(pop, vars, order, numeq=length(eq), TS=false, solution=true)
 
 ## Check solution
 # Does it satisfy inequality constraints?
