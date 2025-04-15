@@ -23,8 +23,8 @@ begin
     v0 = [0; cosd(51.5)*7.66; sind(51.5)*7.66] # [km/s]
 
     # parameters
-    revs = 3
-    knot_pts = 40
+    revs = 6
+    knot_pts = 10
     N = knot_pts*revs
 
     # find the period for 1 rev
@@ -99,6 +99,7 @@ vars = [vec(q); vec(v); vec(a); r; vec(u)]
 # OBJECTIVE
 # minimize radius
 obj = sum(r)
+# obj = sum((r .- 1.).^2)
 # minimize control
 # obj += 10*sum([u[:,i]'*u[:,i] for i = 1:N-1])
 
