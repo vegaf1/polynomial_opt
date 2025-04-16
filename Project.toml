@@ -1,4 +1,5 @@
 [deps]
+Convex = "f65535da-76fb-5f13-bab9-19810c17039a"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 DynamicPolynomials = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
