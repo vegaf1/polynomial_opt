@@ -1,5 +1,5 @@
-## Solve two body problem via semidefinite relaxation
-# Lorenzo Shaikewitz, 3/30/2025
+## Solve two body problem via local solver (random initial guess)
+# Lorenzo Shaikewitz, 5/27/2025
 
 using LinearAlgebra, BlockDiagonals
 using TSSOS, DynamicPolynomials
@@ -22,12 +22,9 @@ begin
     q0 = [6791.0; 0; 0] # [km]
     v0 = [0; cosd(51.5)*7.66; sind(51.5)*7.66] # [km/s]
 
-    q0 .*= 1 + (rand() - 0.5)*0.1
-    v0 .*= 1 + (rand() - 0.5)*0.1
-
     # parameters
-    revs = 1
-    knot_pts = 40
+    revs = 6
+    knot_pts = 10
     N = knot_pts*revs
 
     # find the period for 1 rev
@@ -152,21 +149,19 @@ append!(ineq, umax .- vec(u))
 # SOLVE
 pop = [obj; ineq; eq]
 order = 2
-opt, sol, data = cs_tssos_first(pop, vars, order, numeq=length(eq), TS="MD", solution=true, LorenzoOverride=true)
+opt, sol, data = cs_tssos_first(pop, vars, order, numeq=length(eq), TS="MD", solve=false, LorenzoOverride=true)
 
 # round to solution
-sdp_sol,gap,data.flag = TSSOS.approx_sol(opt, data.moment, data.n, data.cliques, data.cql, data.cliquesize, data.supp, data.coe, numeq=data.numeq, tol=data.tol)
+# sdp_sol,gap,data.flag = TSSOS.approx_sol(opt, data.moment, data.n, data.cliques, data.cql, data.cliquesize, data.supp, data.coe, numeq=data.numeq, tol=data.tol)
 
 # local refinement
 for i = 1:10
-    startpoint = sdp_sol
-    if i > 1
-        startpoint += 0.1*randn(size(sdp_sol))
-    end
+    startpoint = randn(size(vars))
+
     global sol
     sol, refine_status = local_refine(opt, data; QUIET=true, startpoint=startpoint)
     if refine_status == MOI.LOCALLY_SOLVED
-        println("Local solution found! ($i local iterations)")
+        println("Local solution found!")
         break
     end
 end
@@ -192,7 +187,7 @@ println("Moment rank: $rank_mom")
 
 # Condition numbers
 condition_numbers = cond.(data.moment)
-# println("Max condition number: $(maximum(condition_numbers))")
+println("Max condition number: $(maximum(condition_numbers))")
 F = eigen(mom)
 # only the non-zero block
 mom_reduced = reduce(hcat,sqrt.(F.values[end-rank_mom+1:end]).*eachcol(F.vectors[:,end-rank_mom+1:end]))
