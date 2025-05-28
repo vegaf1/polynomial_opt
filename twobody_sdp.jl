@@ -26,8 +26,8 @@ begin
     v0 .*= 1 + (rand() - 0.5)*0.1
 
     # parameters
-    revs = 1
-    knot_pts = 40
+    revs = 2
+    knot_pts = 50
     N = knot_pts*revs
 
     # find the period for 1 rev
@@ -158,13 +158,13 @@ opt, sol, data = cs_tssos_first(pop, vars, order, numeq=length(eq), TS="MD", sol
 sdp_sol,gap,data.flag = TSSOS.approx_sol(opt, data.moment, data.n, data.cliques, data.cql, data.cliquesize, data.supp, data.coe, numeq=data.numeq, tol=data.tol)
 
 # local refinement
-for i = 1:10
+for i = 1:3
     startpoint = sdp_sol
     if i > 1
         startpoint += 0.1*randn(size(sdp_sol))
     end
     global sol
-    sol, refine_status = local_refine(opt, data; QUIET=true, startpoint=startpoint)
+    sol, refine_status = local_refine(opt, data; QUIET=false, startpoint=startpoint)
     if refine_status == MOI.LOCALLY_SOLVED
         println("Local solution found! ($i local iterations)")
         break
